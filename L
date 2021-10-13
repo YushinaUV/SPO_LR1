@@ -1,0 +1,129 @@
+#include <windows.h>
+#include <stdio.h>
+#include <iostream>
+#include <Lmcons.h>
+#include <cstdlib>
+#include <tchar.h>
+#pragma warning(disable : 4996)
+#define WINVER 0x0502
+#define BUFSIZE MAX_PATH 
+#define FILESYSNAMEBUFSIZE MAX_PATH
+#define MAX_KEY_LENGTH 255
+#define BUFFER_SIZE 32767;
+using namespace std;
+//functions which requires to calculate CPU frequency and Measurements duration for 2.1 & 2.2
+void CPUFrequency()
+{
+    double duration; 
+    LARGE_INTEGER freq, t2, t1;
+    QueryPerformanceCounter(&t1);
+    QueryPerformanceFrequency(&freq);
+    QueryPerformanceCounter(&t2);
+    cout << "\n2.1 CPU frequency     HZ: ";
+    printf("\n2.1 CPU frequency:       HZ: ", freq);
+    duration = (1000000 * (double(t2.QuadPart) - double(t1.QuadPart)) / double(freq.QuadPart));
+    cout << "\n2.2 Measurements duration: " << duration << "  mcs";
+}
+
+int main()
+{   //getting required information through the function mentioned below, then printing the required info
+    OSVERSIONINFO OSV;
+    OSV.dwOSVersionInfoSize = sizeof(OSVERSIONINFO);
+    GetVersionEx(&OSV);
+    cout << "1.1 OS version Windows \n";
+    wcout << OSV.dwMajorVersion, OSV.dwMinorVersion;
+
+    //Using GetSystemDirectory function to find the SD's memory location
+    TCHAR SDname[MAX_PATH];
+    GetSystemDirectory(SDname, MAX_PATH);
+    cout << "1.2 System Directory: ";
+    wcout << SDname << endl;
+
+    //Using GetUserNameW function to identify the current user
+    WCHAR user[UNLEN + 1];
+    DWORD ULEN = UNLEN;
+    GetUserNameW(user, &ULEN);
+    cout << "1.3 Username: ";
+    wcout << user << endl;
+
+    //Using GetComputerNameW function to identify the computer name
+    WCHAR PC[MAX_COMPUTERNAME_LENGTH + 1];
+    DWORD PCL = MAX_COMPUTERNAME_LENGTH;
+    GetComputerNameW(PC, &PCL);
+    cout << "    Computer name: ";
+    wcout << PC << endl;
+
+
+    wchar_t buff[MAX_PATH ];
+    wchar_t name[MAX_PATH];
+    DWORD BuffL = MAX_PATH;
+    int counter = NULL;
+    ULARGE_INTEGER freespace;
+    ULARGE_INTEGER volume;
+
+    cout << "1.4 Volume characteristics: ";
+    //using FindFirstVolume to start the volume count & to define the variable
+    //which is required for using the other functions below
+    HANDLE FFVvalue = FindFirstVolume(buff, sizeof(buff));
+    do
+    {
+        //using  GetVolumePathNamesForVolumeName to retrieve a list of drive letters and mounted folder paths
+        GetVolumePathNamesForVolumeName(name, buff, BuffL, &BuffL);
+        if (counter != NULL)
+        {
+            cout << endl;
+            wcout << buff;
+            cout << endl;
+            //using the GetDiskFreeSpaceEx condition to print the information about a non empty disk' size
+            if (GetDiskFreeSpaceEx(name, &freespace, &volume, NULL) != 0)
+            {
+                cout << " Total size: ";
+                wcout << volume.QuadPart;
+                cout << " bytes" << endl << "Free space: ";
+                wcout << freespace.QuadPart;
+                cout << " bytes";
+            }
+            else
+            {
+                cout << " Buffer is empty";
+            }
+
+        }
+        counter++;
+    } while (FindNextVolume(FFVvalue, name, sizeof(buff)));
+    //using the condition above so the information about all the disk shall be printed.
+    FindVolumeClose(FFVvalue); //Closing the volume we opened
+
+
+
+   
+    wchar_t names[32767];
+    wchar_t data[32767];
+    DWORD size_name;
+    DWORD size_data = BUFFER_SIZE;
+    HKEY hkey;
+    DWORD count = 0;
+    cout << "\n1.5 Startup commands:" << endl;
+    //defining the folder with startup programms(defining the data type for the opened key using RegOpenKeyEx)
+    RegOpenKeyEx(HKEY_CURRENT_USER, TEXT("Software\\Microsoft\\Windows\\CurrentVersion\\Run"), 0, KEY_ALL_ACCESS, &hkey);
+    do
+    {
+        size_name = sizeof(names);
+        //using the RegEnumValue function to define tha names' values.
+        //if there were no error for RegEnumValue function we print the startup commands else we break the cycle
+        if (RegEnumValue(hkey, count, names, &size_name, NULL, REG_NONE, NULL, NULL) == ERROR_SUCCESS)
+        {
+            //using RegQueryValueEx to return the type of the name value
+            RegQueryValueEx(hkey, names, NULL, REG_NONE, (LPBYTE)data, &size_data);
+            cout << "   " << count + 1 << "   ";
+            wcout << names;
+            cout << "    ";
+            wcout << data;
+            cout << endl;
+            count++;
+        }
+        else break;
+    } while (1);
+    RegCloseKey(hkey);
+    CPUFrequency(); //calling the function CPUFrequency which requires to calculate CPU frequency and Measurements duration for 2.1 & 2.2
+}
